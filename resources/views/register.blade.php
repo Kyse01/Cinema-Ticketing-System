@@ -115,7 +115,7 @@ body {
 
 <div class="register-container">
     <div class="register-box">
-      <h1 class="register-title">CINEMATIQUE</h1>
+      <img class="logo h-12 mb-3 block mx-auto" src="{{ asset('images/logo.png') }}" alt="Cinematique Logo">
       <h2 class="subtitle">Create your account</h2>
 
       <form id="registerForm" class="register-form" method="POST" action="{{ route('register-user') }}">
