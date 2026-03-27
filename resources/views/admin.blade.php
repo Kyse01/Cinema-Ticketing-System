@@ -28,7 +28,7 @@
 
     <!-- Add Movie Section -->
     <section id="addMovieSection" class="section hidden">
-      <form id="addMovieForm" class="movie-form">
+      <form id="addMovieForm" class="movie-form mt-20">
         <div class="form-group">
           <label>Movie Title</label>
           <input type="text" id="movieTitle" required placeholder="Enter movie title" />
