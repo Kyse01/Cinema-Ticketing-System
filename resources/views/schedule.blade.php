@@ -7,7 +7,6 @@
   <h1 class="text-3xl text-white font-bold mb-6">Movie Schedule</h1>
 </div>
 
-<body>
 <div class="movie_container">
 
   <div class="flex space-x-6">
@@ -35,49 +34,43 @@
     </div>
   </div>
 
+  <!-- Branch Dropdown — populated from DB -->
   <div class="section mt-8">
     <h3 class="text-white font-semibold pb-3">Select Cinema Branch</h3>
     <select id="cinemaBranchDropdown" name="cinema_branch" class="w-full p-3 text-black rounded-lg bg-white cursor-pointer">
       <option value="" disabled selected>Select a Branch...</option>
-      <option value="sm_megamall">SM Megamall</option>
-      <!-- <option value="glorietta_4">Glorietta 4</option>
-      <option value="robinsons_galleria">Robinsons Galleria</option>
-      <option value="greenbelt_3">Greenbelt 3</option>
-      <option value="trinoma">Trinoma</option> -->
+      @if(count($branches) > 0)
+        @foreach($branches as $branch)
+          <option value="{{ $branch }}">{{ $branch }}</option>
+        @endforeach
+      @else
+        <option value="" disabled>No branches available for this movie yet</option>
+      @endif
     </select>
   </div>
 
+  <!-- Date options — populated dynamically via JS based on selected branch -->
   <div class="section">
     <h3 class="text-white font-semibold pb-3">Select Date</h3>
     <div class="options" id="dates"></div>
+    <p id="noDatesMsg" class="text-gray-400 text-sm hidden">No dates available for this branch.</p>
   </div>
 
+  <!-- Time options — populated dynamically via JS based on selected date -->
   <div class="section">
     <h3 class="text-white font-semibold pb-3">Select Time</h3>
     <div class="options" id="times"></div>
+    <p id="noTimesMsg" class="text-gray-400 text-sm hidden">No times available for selected date.</p>
   </div>
 
+  <!-- Cinema Type -->
   <div class="section">
     <h3 class="text-white font-semibold pb-3">Select Cinema Type</h3>
     <div class="cinema-type" id="cinemaType">
-      <div class="cinema" data-price="250" data-type="Standard">
-        <h3>Standard</h3>
-        <p>Regular screen and seating</p>
-        <span>₱250</span>
-      </div>
-      <div class="cinema disabled" data-price="450" data-type="IMAX">
-        <h3>IMAX</h3>
-        <p>Enhanced visuals and sound</p>
-        <span>₱450</span>
-      </div>
-      <div class="cinema disabled" data-price="600" data-type="Director’s Club">
-        <h3>Director’s Club</h3>
-        <p>Luxury experience</p>
-        <span>₱600</span>
-      </div>
     </div>
   </div>
 
+  <!-- Seat Layout -->
   <div class="section">
     <h3 class="text-white font-semibold">Select Your Seats</h3>
     <div class="screen">SCREEN</div>
@@ -86,6 +79,7 @@
     </div>
   </div>
 
+  <!-- Payment Summary -->
   <div class="section payment-summary" id="paymentSummary" style="display:none;">
     <div class="pdf-ticket mx-auto">
       <div class="ticket-header">
@@ -115,6 +109,10 @@
 
 </div>
 
+<!-- Pass schedule data from PHP to JS -->
+<script>
+  const schedulesByBranch = @json($schedulesByBranch);
+</script>
+
 <script src="{{ asset('js/schedule.js') }}"></script>
-</body>
 @endsection

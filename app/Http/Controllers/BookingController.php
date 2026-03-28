@@ -28,13 +28,17 @@ class BookingController extends Controller
      */
     public function store(Request $request)
     {
+        $movieSchedule = \App\Models\MovieSchedule::with('schedule')->find($request->input('movie_schedule_id'));
+        $dateTime = $movieSchedule && $movieSchedule->schedule ? $movieSchedule->schedule->start : now();
+
         $booking = Booking::create([
             'user_id' => auth()->id(),
             'movie_id' => $request->input('movie_id'),
+            'movie_schedule_id' => $request->input('movie_schedule_id'),
             'movie_title' => $request->input('movie_title'),
             'cinema_type' => $request->input('cinema_type'),
             'seats' => $request->input('seats'),
-            'date_time' => now(),
+            'date_time' => $dateTime,
             // 'total_amount' => $request->input('total')
         ]);
         return response()->json([
@@ -43,10 +47,18 @@ class BookingController extends Controller
         ]);
     }
 
-    public function getBookedSeats($movie_id)
+    public function getBookedSeats(Request $request, $movie_id)
     {
         // Fetch booked seat data properly
-        $bookings = Booking::where('movie_id', $movie_id)->pluck('seats');
+        $scheduleId = $request->query('schedule_id');
+        
+        if (!$scheduleId) {
+            return response()->json([]);
+        }
+
+        $bookings = Booking::where('movie_id', $movie_id)
+                           ->where('movie_schedule_id', $scheduleId)
+                           ->pluck('seats');
 
         $bookedSeats = [];
         foreach ($bookings as $seatString) {
@@ -55,7 +67,7 @@ class BookingController extends Controller
             }
         }
 
-        return response()->json($bookedSeats);
+        return response()->json(array_unique($bookedSeats));
     }
 
     /**

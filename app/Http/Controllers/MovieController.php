@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Movie;
+use App\Models\MovieSchedule;
 use Illuminate\Http\Request;
 
 class MovieController extends Controller
@@ -23,19 +24,9 @@ class MovieController extends Controller
             ['title'=> 'Sci-Fi', 'data_genre' => 'sci-fi'],
         ];
 
-        // Fetch all movies from the database
         $movies = Movie::all();
 
-        // Pass both $genres and $movies to the Blade view
         return view('movies', compact('genres', 'movies'));
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
     }
 
     /**
@@ -47,12 +38,45 @@ class MovieController extends Controller
     }
 
     /**
-     * Display the specified resource.
+     * Display the specified resource (schedule page).
+     * Passes movie + its real schedule data grouped by branch.
      */
     public function show($id)
     {
         $movie = Movie::findOrFail($id);
-        return view('schedule', compact('movie'));
+
+        // Load all MovieSchedule entries for this movie with schedule + cinema
+        $movieSchedules = MovieSchedule::with(['schedule.cinema'])
+            ->where('movie_id', $id)
+            ->get();
+
+        // Build branches list (unique)
+        $branches = $movieSchedules
+            ->pluck('schedule.cinema.branch')
+            ->filter()
+            ->unique()
+            ->values();
+
+        // Build schedules keyed by branch → [ ['date'=>..., 'time'=>..., 'cinema_type'=>..., 'schedule_id'=>... ] ]
+        $schedulesByBranch = [];
+        foreach ($movieSchedules as $ms) {
+            $cinema = $ms->schedule?->cinema;
+            $branch = $cinema?->branch;
+            if (!$branch) continue;
+
+            $start = $ms->schedule->start;
+            $schedulesByBranch[$branch][] = [
+                'schedule_id'        => $ms->id,
+                'date'               => \Carbon\Carbon::parse($start)->format('D M d'),
+                'time'               => \Carbon\Carbon::parse($start)->format('g:i A'),
+                'cinema_type'        => $cinema->type,
+                'cinema_hall'        => $cinema->hall,
+                'cinema_price'       => $cinema->price,
+                'cinema_description' => $cinema->description,
+            ];
+        }
+
+        return view('schedule', compact('movie', 'branches', 'schedulesByBranch'));
     }
 
     /**
@@ -60,7 +84,7 @@ class MovieController extends Controller
      */
     public function edit(Movie $movie)
     {
-        dd($movie);
+        //
     }
 
     /**

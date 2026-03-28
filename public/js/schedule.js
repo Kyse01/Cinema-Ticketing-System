@@ -1,79 +1,180 @@
 /* ==============================
-   DATE GENERATION (Next 5 Days)
+   SCHEDULE DATA (from PHP / DB)
 ================================= */
-const dateContainer = document.getElementById("dates");
-const today = new Date();
+// `schedulesByBranch` is injected by the Blade template as a JSON object:
+// { "SM Megamall": [ { date, time, cinema_type, cinema_hall, schedule_id }, ... ], ... }
 
-for (let i = 0; i < 5; i++) {
-  const date = new Date(today);
-  date.setDate(today.getDate() + i);
-  const el = document.createElement("div");
-  el.className = "option";
-  el.textContent = date.toDateString().split(" ").slice(0, 3).join(" ");
-  if (i === 0) el.classList.add("active");
-  dateContainer.appendChild(el);
+const dateContainer  = document.getElementById("dates");
+const timeContainer  = document.getElementById("times");
+const noDatesMsg     = document.getElementById("noDatesMsg");
+const noTimesMsg     = document.getElementById("noTimesMsg");
+const branchDropdown = document.getElementById("cinemaBranchDropdown");
+
+/* ── Populate dates for a given branch ── */
+function populateDates(branch) {
+  dateContainer.innerHTML = "";
+  timeContainer.innerHTML = "";
+
+  const entries = (schedulesByBranch && schedulesByBranch[branch]) || [];
+  if (entries.length === 0) {
+    if (noDatesMsg) noDatesMsg.classList.remove("hidden");
+    return;
+  }
+  if (noDatesMsg) noDatesMsg.classList.add("hidden");
+
+  // Unique dates in insertion order
+  const uniqueDates = [...new Set(entries.map(e => e.date))];
+  uniqueDates.forEach((date, i) => {
+    const el = document.createElement("div");
+    el.className = "option" + (i === 0 ? " active" : "");
+    el.textContent = date;
+    el.dataset.date = date;
+    dateContainer.appendChild(el);
+  });
+
+  // Populate times for the first date by default
+  populateTimes(branch, uniqueDates[0]);
+  handleOptionGroup("dates", () => {
+    const activeDate = document.querySelector("#dates .option.active")?.dataset.date;
+    if (activeDate) populateTimes(branch, activeDate);
+  });
 }
 
-/* ==============================
-   TIME GENERATION (Every 3 Hours)
-================================= */
-const timeContainer = document.getElementById("times");
-const startTime = 10;
-const intervalMinutes = 180;
-const totalSlots = 5;
+const cinemaTypeContainer = document.getElementById("cinemaType");
 
-function formatTime(hour, minute) {
-  const period = hour >= 12 ? "PM" : "AM";
-  const displayHour = hour % 12 || 12;
-  const displayMinute = minute.toString().padStart(2, "0");
-  return `${displayHour}:${displayMinute} ${period}`;
+/* ── Populate times for a given branch + date ── */
+function populateTimes(branch, date) {
+  timeContainer.innerHTML = "";
+  const entries = (schedulesByBranch && schedulesByBranch[branch]) || [];
+  const filtered = entries.filter(e => e.date === date);
+
+  if (filtered.length === 0) {
+    if (noTimesMsg) noTimesMsg.classList.remove("hidden");
+    return;
+  }
+  if (noTimesMsg) noTimesMsg.classList.add("hidden");
+
+  // Populate times
+  filtered.forEach((entry, i) => {
+    const el = document.createElement("div");
+    el.className = "option" + (i === 0 ? " active" : "");
+    el.textContent = entry.time;
+    el.dataset.cinemaType = entry.cinema_type;
+    el.dataset.cinemaHall = entry.cinema_hall;
+    el.dataset.cinemaPrice = entry.cinema_price;
+    el.dataset.cinemaDescription = entry.cinema_description;
+    el.dataset.scheduleId = entry.schedule_id;
+    timeContainer.appendChild(el);
+  });
+
+  // Populate cinema types dynamically from filtered entries
+  populateCinemaTypes(filtered);
+
+  handleOptionGroup("times", () => {
+    const activeTime = document.querySelector("#times .option.active");
+    if (activeTime) {
+      const type = activeTime.dataset.cinemaType;
+      // Auto-select the corresponding cinema type
+      document.querySelectorAll(".cinema").forEach(c => {
+        if (c.dataset.type === type) {
+          c.classList.add("active");
+          pricePerSeat = parseFloat(c.dataset.price);
+          selectedCinemaType = c.dataset.type;
+        } else {
+          c.classList.remove("active");
+        }
+      });
+      loadSeats();
+    }
+  });
+
+  // Initial load for the first selected time
+  loadSeats();
 }
 
-let currentHour = startTime, currentMinute = 0;
-for (let i = 0; i < totalSlots; i++) {
-  const timeText = formatTime(currentHour, currentMinute);
-  const el = document.createElement("div");
-  el.className = "option";
-  el.textContent = timeText;
-  if (i === 0) el.classList.add("active");
-  timeContainer.appendChild(el);
+function populateCinemaTypes(filtered) {
+  cinemaTypeContainer.innerHTML = "";
+  
+  // Unique types from the current filtered schedules
+  // Using a Map to keep price and description along with the type
+  const typeMap = new Map();
+  filtered.forEach(entry => {
+    if (!typeMap.has(entry.cinema_type)) {
+      typeMap.set(entry.cinema_type, {
+        price: entry.cinema_price,
+        description: entry.cinema_description
+      });
+    }
+  });
 
-  const totalMins = currentMinute + intervalMinutes;
-  currentHour += Math.floor(totalMins / 60);
-  currentMinute = totalMins % 60;
+  // Render each unique type
+  let index = 0;
+  typeMap.forEach((data, type) => {
+    const el = document.createElement("div");
+    el.className = "cinema" + (index === 0 ? " active" : "");
+    el.dataset.price = data.price;
+    el.dataset.type = type;
+
+    el.innerHTML = `
+      <h3>${type}</h3>
+      <p>${data.description || ""}</p>
+      <span>₱${parseFloat(data.price).toLocaleString()}</span>
+    `;
+    
+    cinemaTypeContainer.appendChild(el);
+
+    if (index === 0) {
+      pricePerSeat = parseFloat(data.price);
+      selectedCinemaType = type;
+    }
+    index++;
+  });
+
+  handleCinemaTypeGroup();
 }
 
-/* ==============================
-   OPTION CLICK HANDLER (Date/Time)
-================================= */
-function handleOptionGroup(id) {
-  document.querySelectorAll(`#${id} .option`).forEach(opt => {
-    opt.addEventListener("click", () => {
-      document.querySelectorAll(`#${id} .option`).forEach(o => o.classList.remove("active"));
-      opt.classList.add("active");
+function handleCinemaTypeGroup() {
+  document.querySelectorAll(".cinema").forEach(cin => {
+    cin.addEventListener("click", () => {
+      document.querySelectorAll(".cinema").forEach(c => c.classList.remove("active"));
+      cin.classList.add("active");
+
+      pricePerSeat = parseFloat(cin.dataset.price);
+      selectedCinemaType = cin.dataset.type;
       updateTotal();
     });
   });
 }
-handleOptionGroup("dates");
-handleOptionGroup("times");
+
+/* ── Generic option group click handler ── */
+function handleOptionGroup(id, callback) {
+  document.querySelectorAll(`#${id} .option`).forEach(opt => {
+    opt.addEventListener("click", () => {
+      document.querySelectorAll(`#${id} .option`).forEach(o => o.classList.remove("active"));
+      opt.classList.add("active");
+      if (callback) callback();
+      updateTotal();
+    });
+  });
+}
+
+/* ── Branch change triggers date/time re-population ── */
+branchDropdown?.addEventListener("change", function () {
+  populateDates(this.value);
+  updateTotal();
+});
+
+/* ── Initial load: if branch already selected, populate ── */
+if (branchDropdown?.value) {
+  populateDates(branchDropdown.value);
+}
+
 
 /* ==============================
    CINEMA TYPE SELECTION
 ================================= */
 let pricePerSeat = 250;
 let selectedCinemaType = "Standard";
-
-document.querySelectorAll(".cinema").forEach(cin => {
-  cin.addEventListener("click", () => {
-    document.querySelectorAll(".cinema").forEach(c => c.classList.remove("active"));
-    cin.classList.add("active");
-
-    pricePerSeat = parseInt(cin.dataset.price);
-    selectedCinemaType = cin.dataset.type;
-    updateTotal();
-  });
-});
 
 /* ==============================
    SEAT GENERATION
@@ -97,8 +198,12 @@ function seatSVG(id, booked = false) {
 ================================= */
 async function loadSeats() {
   const movieId = document.querySelector("#movie_id").value;
+  const activeTime = document.querySelector("#times .option.active");
+  const scheduleId = activeTime ? activeTime.dataset.scheduleId : null;
+
   try {
-    const response = await fetch(`/booked-seats/${movieId}`);
+    const url = scheduleId ? `/booked-seats/${movieId}?schedule_id=${scheduleId}` : `/booked-seats/${movieId}`;
+    const response = await fetch(url);
     const bookedSeats = await response.json();
 
     seatWrapper.innerHTML = `
@@ -223,8 +328,12 @@ document.getElementById("paymentMethod").addEventListener("change", function () 
 ================================= */
 let pendingBookingId = null;
 proceedBtn.addEventListener("click", async () => {
+  const activeTime = document.querySelector("#times .option.active");
+  const scheduleId = activeTime ? activeTime.dataset.scheduleId : null;
+
   const bookingData = {
     movie_id: document.querySelector("#movie_id").value,
+    movie_schedule_id: scheduleId,
     movie_title: document.querySelector("#movie_title").value,
     cinema_type: selectedCinemaType,
     seats: selected.join(","),
@@ -262,6 +371,7 @@ confirmPayment.addEventListener("click", async (e) => {
 
   const totalValue = parseFloat(document.querySelector("#finalTotal").textContent.replace(/[^\d.]/g, ""));
   const paymentMethod = document.querySelector("#paymentMethod");
+  const proofImageInput = document.querySelector("#proofImage");
   const bookingId = document.querySelector("#booking_id").value;
 
   if (!paymentMethod.value) {
@@ -269,31 +379,33 @@ confirmPayment.addEventListener("click", async (e) => {
     return;
   }
 
-  const paymentData = {
-    booking_id: bookingId,
-    payment_method_id: paymentMethod.value,
-    payment_method_name: paymentMethod.options[paymentMethod.selectedIndex].text,
-    total: totalValue,
-  };
+  if (!proofImageInput.files.length) {
+    alert("Please upload payment proof.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("booking_id", bookingId);
+  formData.append("payment_method_id", paymentMethod.value);
+  formData.append("payment_method_name", paymentMethod.options[paymentMethod.selectedIndex].text);
+  formData.append("total", totalValue);
+  formData.append("proof_image", proofImageInput.files[0]);
 
   try {
     const token = document.querySelector('meta[name="csrf-token"]').getAttribute("content");
     const response = await fetch("/payment/store", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-CSRF-TOKEN": token },
-      body: JSON.stringify(paymentData),
+      headers: { "X-CSRF-TOKEN": token },
+      body: formData,
     });
 
     const result = await response.json();
 
     if (response.ok && result.success) {
-      alert("Payment Successfull!");
+      alert("Payment submitted successfully! Waiting for admin approval.");
       paymentContent.classList.add("hidden");
       paymentSuccess.classList.remove("hidden");
       pendingBookingId = null;
-
-      const downloadLink = document.getElementById("downloadTicket");
-      downloadLink.href = `/ticket/download/${result.booking_id}`;
 
     } else {
       alert(result.message || "Payment failed!");

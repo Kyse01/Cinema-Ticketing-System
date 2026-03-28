@@ -5,77 +5,73 @@ namespace App\Http\Controllers;
 use App\Models\Payment;
 use App\Models\Booking;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class PaymentController extends Controller
 {
     /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
+     * Store payment with proof image upload.
+     * Status starts as 'pending' until admin approves.
      */
     public function store(Request $request)
     {
         $booking = Booking::where('user_id', auth()->id())->latest('created_at')->first();
 
-        // Create the payment record linked to that booking
+        $proofPath = null;
+        if ($request->hasFile('proof_image')) {
+            $proofPath = $request->file('proof_image')->store('payment_proofs', 'public');
+        }
+
         $payment = Payment::create([
-            'date_time' => now(),
-            'total_amount' => $request->input('total'),
-            'booking_id' => $booking->id, 
-            'payment_method_id' => $request->input('payment_method_id'),
+            'date_time'           => now(),
+            'total_amount'        => $request->input('total'),
+            'booking_id'          => $booking->id,
+            'payment_method_id'   => $request->input('payment_method_id'),
             'payment_method_name' => $request->input('payment_method_name'),
+            'proof_image'         => $proofPath,
+            'status'              => 'pending',
         ]);
 
         return response()->json([
-            'success' => true,
+            'success'    => true,
             'booking_id' => $booking->id,
             'payment_id' => $payment->id,
         ]);
     }
 
     /**
-     * Display the specified resource.
+     * Upload proof image for an existing payment (called via AJAX after payment form).
      */
-    public function show(Payment $payment)
+    public function uploadProof(Request $request, $paymentId)
     {
-        //
+        $request->validate([
+            'proof_image' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+        ]);
+
+        $payment = Payment::findOrFail($paymentId);
+
+        // Delete old proof if exists
+        if ($payment->proof_image) {
+            Storage::disk('public')->delete($payment->proof_image);
+        }
+
+        $proofPath = $request->file('proof_image')->store('payment_proofs', 'public');
+        $payment->update(['proof_image' => $proofPath, 'status' => 'pending']);
+
+        return response()->json(['success' => true, 'message' => 'Proof uploaded successfully!']);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Payment $payment)
+    /* ── Admin Actions ── */
+
+    public function approve($id)
     {
-        //
+        Payment::findOrFail($id)->update(['status' => 'approved']);
+        return redirect()->route('admin')->with('success', 'Payment approved!');
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Payment $payment)
+    public function reject($id)
     {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Payment $payment)
-    {
-        //
+        Payment::findOrFail($id)->update(['status' => 'rejected']);
+        return redirect()->route('admin')->with('success', 'Payment rejected.');
     }
 }

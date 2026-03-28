@@ -3,12 +3,11 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>{{ config('app.name', 'Cinematique') }}</title>
+        <title>OTP Verification - Cinematique</title>
     </head>
 
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tailwindplus/elements@1" type="module"></script>
 
 <body class="relative"> 
 <div class="absolute inset-0 bg-black/45 z-0"></div> 
@@ -47,13 +46,6 @@ body {
   text-align: center;
 }
 
-.login-title {
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: #FFC90D;
-  margin-bottom: 5px;
-}
-
 .subtitle {
   font-size: 1rem;
   color: #fff;
@@ -82,7 +74,10 @@ body {
   outline: none;
   background: #fff;
   color: #000;
-  font-size: 0.95rem;
+  font-size: 1.25rem;
+  text-align: center;
+  letter-spacing: 5px;
+  font-weight: 700;
   transition: 0.3s;
 }
 
@@ -115,42 +110,32 @@ body {
 <div class="login-container">
     <div class="login-box">
       <img class="logo h-12 mb-3 block mx-auto" src="{{ asset('images/logo.png') }}" alt="Cinematique Logo">
-      <h2 class="subtitle">Login to your account</h2>
+      <h2 class="subtitle">Enter OTP Code</h2>
 
       @if(session('success'))
-          <div style="background-color: #10b981; color: white; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 0.9rem;">
-              {!! session('success') !!}
+          <div style="background-color: #10b981; color: white; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+              {{ session('success') }}
           </div>
       @endif
-      @if(session('error'))
-          <div style="background-color: #ef4444; color: white; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 0.9rem;">
-              {!! session('error') !!}
-          </div>
-      @endif
+      
       @if($errors->any())
-          <div style="background-color: #ef4444; color: white; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 0.9rem;">
+          <div style="background-color: #ef4444; color: white; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
               @foreach ($errors->all() as $error)
                   <p>{{ $error }}</p>
               @endforeach
           </div>
       @endif
 
-      <form id="loginForm" class="login-form" method="POST" action="{{ route('login-user') }}">
+      <form id="otpForm" class="login-form" method="POST" action="{{ route('login.otp.verify') }}">
         @csrf
         <div class="form-group">
-          <label for="email">Email Address</label>
-          <input type="email" id="email" name="email" placeholder="Enter your email" required>
+          <label for="otp">One-Time Password</label>
+          <input type="text" id="otp" name="otp" placeholder="123456" maxlength="6" required autofocus>
         </div>
 
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input type="password" id="password" name="password" placeholder="Enter your password" required>
-        </div>
-
-        <button type="submit" class="login-btn">Login</button>
+        <button type="submit" class="login-btn">Verify and Login</button>
       </form>
-        <a href="{{ route('register') }}" style="color: #FFC90D; margin-top: 15px; display: inline-block;">Don't have an account? Register</a>
-        <a href="{{ route('homepage') }}" style="color: #FFC90D; margin-top: 10px; display: inline-block;">Return to Homepage</a>
+        <a href="{{ route('login') }}" style="color: #FFC90D; margin-top: 15px; display: inline-block;">Cancel</a>
       <p class="note">© 2025 Cinematique. All Rights Reserved.</p>
     </div>
   </div>
